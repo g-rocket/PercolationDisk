@@ -1,28 +1,26 @@
 package net.clonecomputers.lab.percolation;
 
-import net.clonecomputers.lab.util.*;
-
 import java.util.*;
 
 import com.carrotsearch.hppc.*;
+import com.carrotsearch.hppc.cursors.*;
 
 public class PercolationDisk {
-	private Set<Point2D> donePoints = new HashSet<Point2D>(100);
-	private Set<Point2D> thisPoints;
-	private Set<Point2D> nextPoints;
+	private LongSet donePoints = new LongOpenHashSet();
+	private LongSet thisPoints;
+	private LongSet nextPoints;
 	private long area;
 	
 	public void run(double p) {
-		nextPoints = new HashSet<Point2D>();
-		nextPoints.add(new Point2D(0,0));
+		nextPoints = new LongOpenHashSet();
+		nextPoints.add(point2D(0,0));
 		for(int level = 0; true; level++) {
 			thisPoints = nextPoints;
-			nextPoints = new HashSet<Point2D>();
-			
-			for(Point2D p1: thisPoints) {
-				donePoints.add(p1);
+			nextPoints = new LongOpenHashSet();
+			for(LongCursor p1: thisPoints) {
+				donePoints.add(p1.value);
 				for(Dir d: Dir.values()) {
-					Point2D p2 = d.inDir(p1);
+					long p2 = d.inDir(p1.value);
 					if(!donePoints.contains(p2) && Math.random() < p) nextPoints.add(p2);
 				}
 			}
@@ -32,6 +30,18 @@ public class PercolationDisk {
 		}
 	}
 	
+	private static long point2D(int x, int y) {
+		return (((long)x)<<32) | y;
+	}
+	
+	private static int x(long point) {
+		return (int)(point>>32);
+	}
+	
+	private static int y(long point) {
+		return (int)(point & 0xffffffff);
+	}
+
 	private enum Dir {
 		UP(0,1),
 		DOWN(0,-1),
@@ -44,12 +54,12 @@ public class PercolationDisk {
 			this.dy = dy;
 		}
 		
-		public Point2D inDir(Point2D p) {
-			return new Point2D(p.x + dx, p.y + dy);
+		public long inDir(long p) {
+			return point2D(x(p)+dx,y(p)+dy);
 		}
 	}
 
 	public static void main(String[] args) {
-		new PercolationDisk().run(.7);
+		new PercolationDisk().run(1);
 	}
 }

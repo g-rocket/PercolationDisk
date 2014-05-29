@@ -45,11 +45,6 @@
   </build>
   <dependencies>
     <dependency>
-      <groupId>net.clonecomputers.lab</groupId>
-      <artifactId>Java-Utility-Library</artifactId>
-      <version>4.2.0</version>
-    </dependency>
-    <dependency>
       <groupId>com.carrotsearch</groupId>
       <artifactId>hppc</artifactId>
       <version>0.6.0</version>
