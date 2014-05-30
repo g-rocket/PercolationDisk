@@ -10,36 +10,38 @@ public class PercolationDisk {
 	private LongSet thisPoints;
 	private LongSet nextPoints;
 	private long area;
+	private double radius;
 	
 	public void run(double p) {
 		nextPoints = new LongOpenHashSet();
 		nextPoints.add(point2D(0,0));
-		for(int level = 0; true; level++) {
+		for(int level = 0; !nextPoints.isEmpty(); level++) {
 			thisPoints = nextPoints;
 			nextPoints = new LongOpenHashSet();
 			for(LongCursor p1: thisPoints) {
 				donePoints.add(p1.value);
+				area++;
+				radius = Math.max(radius, Math.hypot(x(p1.value), y(p1.value)));
 				for(Dir d: Dir.values()) {
 					long p2 = d.inDir(p1.value);
 					if(!donePoints.contains(p2) && Math.random() < p) nextPoints.add(p2);
 				}
 			}
 			
-			area += thisPoints.size();
-			System.out.println(level+": "+((double)area)/level/level);
+			System.out.println(level+": "+area+" -> "+((double)area)/radius/radius);
 		}
 	}
 	
 	private static long point2D(int x, int y) {
-		return (((long)x)<<32) | y;
+		return (((long)x) << 32) | (y & 0xffffffffL);
 	}
 	
 	private static int x(long point) {
-		return (int)(point>>32);
+		return (int)(point >> 32);
 	}
 	
 	private static int y(long point) {
-		return (int)(point & 0xffffffff);
+		return (int)point;
 	}
 
 	private enum Dir {
@@ -60,6 +62,6 @@ public class PercolationDisk {
 	}
 
 	public static void main(String[] args) {
-		new PercolationDisk().run(1);
+		new PercolationDisk().run(.618033);
 	}
 }
