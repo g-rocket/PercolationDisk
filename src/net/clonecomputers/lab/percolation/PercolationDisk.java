@@ -13,31 +13,60 @@ public class PercolationDisk {
 	private LongSet nextPoints;
 	private long area;
 	private double radius;
-	private double pi;
+	private long perimeter;
+	private boolean isValid;
+	private double p;
+	private Writer output;
 	
-	public double calculatePi(double p) {
+	public PercolationDisk(double p) {
+		this(p, null);
+	}
+	
+	public PercolationDisk(double p, Writer output) {
+		this.p = p;
+		this.output = output;
+	}
+
+	public void calculate() {
 		nextPoints = new LongOpenHashSet();
 		nextPoints.add(point2D(0,0));
-		for(int level = 0; !nextPoints.isEmpty() && level < 2000; level++) {
+		isValid = false;
+		for(int level = 0; !nextPoints.isEmpty() && level <= 2500; level++) {
 			thisPoints = nextPoints;
 			nextPoints = new LongOpenHashSet();
+			perimeter = 0;
 			for(LongCursor p1: thisPoints) {
 				try {
 					donePoints.add(p1.value);
 				} catch (OutOfMemoryError e) {
-					return pi;
+					isValid = true;
+					return;
 				}
 				area++;
+				perimeter++;
 				radius = Math.max(radius, Math.hypot(x(p1.value), y(p1.value)));
 				for(Dir d: Dir.values()) {
 					long p2 = d.inDir(p1.value);
 					if(!donePoints.contains(p2) && Math.random() < p) nextPoints.add(p2);
 				}
 			}
-			pi = ((double)area)/radius/radius;
+			if(level%100 == 0 && output != null) {
+				synchronized (output) {
+					try {
+						output.append(String.format("%f, %d, %f, %d, %d\n", p, level, radius, area, perimeter));
+						output.flush();
+					} catch (IOException e) {
+						throw new RuntimeException(e);
+					}
+				}
+			}
 			//System.out.printf("%d: %.4f\n",level,pi);
 		}
-		return pi;
+		if(nextPoints.isEmpty()) {
+			isValid = false;
+			return;
+		}
+		isValid = true;
 	}
 	
 	private static long point2D(int x, int y) {
@@ -72,12 +101,16 @@ public class PercolationDisk {
 	static volatile int x;
 	static volatile boolean shouldStop = false;
 	public static void main(String[] args) throws IOException {
-		if(args.length == 0) {
-			System.out.println(new PercolationDisk().calculatePi(.618033));
+		if(args.length == 1) {
+			System.out.println(new PercolationDisk(Double.parseDouble(args[0]), null).calculatePi());
+			System.exit(0);
 		}
 		System.out.println("type 'stop' to stop");
-		File saveFile = new File(System.getProperty("user.home"), "percolationDisk.csv");
-		saveFile.createNewFile();
+		File saveFile;
+		int n = 0;
+		do {
+			saveFile = new File(System.getProperty("user.home"), "percolationDisk"+n+++".csv");
+		} while(!saveFile.createNewFile());
 		Writer save = new FileWriter(saveFile);
 		ExecutorService exec = Executors.newCachedThreadPool();
 		exec.execute(new Runnable() {
@@ -98,7 +131,7 @@ public class PercolationDisk {
 				}
 			}
 		});
-		PercolationDisk useless = new PercolationDisk();
+		PercolationDisk useless = new PercolationDisk(0, null);
 		int i;
 		outer:
 		for(i = 1; true; i++) {
@@ -115,6 +148,11 @@ public class PercolationDisk {
 		save.flush();
 	}
 
+	private double calculatePi() {
+		calculate();
+		return ((double)area)/radius/radius;
+	}
+
 	private static final double log2 = Math.log(2);
 	private static class PercolationRunner implements Runnable {
 		private final int i;
@@ -125,17 +163,10 @@ public class PercolationDisk {
 		}
 		
 		@Override public void run() {
-			try {
-				double level = Math.pow(2, Math.floor(Math.log(i) / log2));
-				double p = (2*(i - level) + 1) / (level*2);
-				double d = new PercolationDisk().calculatePi(p);
-				if(!Double.isInfinite(d)) synchronized(save) {
-					save.write(p+", "+d+"\n");
-					save.flush();
-				}
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
+			double level = Math.pow(2, Math.floor(Math.log(i) / log2));
+			double p = (2*(i - level) + 1) / (level*2);
+			PercolationDisk perc = new PercolationDisk(p, save);
+			perc.calculate();
 			System.out.println(i+" done");
 			x--;
 		}
